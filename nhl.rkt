@@ -4,6 +4,7 @@
          net/cookies
          net/uri-codec
          net/head
+         gregor
          json)
 
 (define current-user-agent (make-parameter "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0"))
@@ -11,6 +12,20 @@
 (define current-auth-token (make-parameter "d2ViX25obC12MS4wLjA6MmQxZDg0NmVhM2IxOTRhMThlZjQwYWM5ZmJjZTk3ZTM="))
 (define current-email (make-parameter #f))
 (define current-pw (make-parameter #f))
+(define platform "IPHONE")
+
+(define scheduled-games
+  (λ (#:date (game-day (current-date)))
+    (date-display-format 'iso-8601)
+    (define expand-params "schedule.teams,schedule.linescore,schedule.scoringplays,schedule.game.content.media.epg")
+    (define schedule-url (url "https" #f "statsapi.web.nhl.com" #f #t
+                              (map (λ (path) (path/param path '())) '("api" "v1" "schedule"))
+                              `((expand . ,expand-params)
+                                (platform . ,platform)
+                                (site . "en_nhl")
+                                (date . ,(date->string game-day)))
+                              #f))
+    schedule-url))
 
 (define (nhl-logout)
   (define logout-url (url "https" #f "account.nhl.com" #f #t
@@ -64,36 +79,36 @@
                               ((compose string->jsexpr port->string) p)))
                     token-header))
 
+  (parameterize ((current-auth-token (hash-ref token-response 'access_token)))
 
-  (current-auth-token (hash-ref token-response 'access_token))
 
-  (define auth-header (list (~a "Authorization: " (current-auth-token))
-                            (~a "User-Agent: " (current-user-agent))
-                            "Accept: */*"
-                            "Accept-Encoding: gzip, deflate"
-                            "Accept-Language: en-US,en;q=0.8"
-                            "Content-Type: application/json"))
+    (define auth-header (list (~a "Authorization: " (current-auth-token))
+                              (~a "User-Agent: " (current-user-agent))
+                              "Accept: */*"
+                              "Accept-Encoding: gzip, deflate"
+                              "Accept-Language: en-US,en;q=0.8"
+                              "Content-Type: application/json"))
 
-  (define auth-data (string->bytes/utf-8
-                     (jsexpr->string
-                      (make-hasheq `((email . ,(make-hasheq `((address . ,(current-email)))))
-                                     (password . ,(make-hasheq `((value . ,(current-pw)))))
-                                     (type . "email-password"))))))
+    (define auth-data (string->bytes/utf-8
+                       (jsexpr->string
+                        (make-hasheq `((email . ,(make-hasheq `((address . ,(current-email)))))
+                                       (password . ,(make-hasheq `((value . ,(current-pw)))))
+                                       (type . "email-password"))))))
 
-  (define HTTP-OK #px"HTTP/1.1 200 OK\r\n")
+    (define HTTP-OK #px"HTTP/1.1 200 OK\r\n")
 
-  (define-values (auth-response-header auth-response)
-    (call/input-url login-url
-                    (λ (u h)
-                      (post-impure-port u auth-data h))
-                    (λ (p)
-                      (let ((head (purify-port p)))
-                        (if (regexp-match? HTTP-OK head)
-                            (values (extract-all-fields (string->bytes/utf-8 (string-trim head HTTP-OK)))
-                                    ((compose string->jsexpr port->string) p))
-                            (raise "Login failed"))))
-                    auth-header))
+    (define-values (auth-response-header auth-response)
+      (call/input-url login-url
+                      (λ (u h)
+                        (post-impure-port u auth-data h))
+                      (λ (p)
+                        (let ((head (purify-port p)))
+                          (if (regexp-match? HTTP-OK head)
+                              (values (extract-all-fields (string->bytes/utf-8 (string-trim head HTTP-OK)))
+                                      ((compose string->jsexpr port->string) p))
+                              (raise "Login failed"))))
+                      auth-header))
 
-  (extract-and-save-cookies! auth-response-header login-url)
+    (extract-and-save-cookies! auth-response-header login-url)
 
-  (values auth-response-header auth-response))
+    (values auth-response-header auth-response)))
