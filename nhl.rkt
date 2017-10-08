@@ -15,17 +15,27 @@
 (define platform "IPHONE")
 
 (define scheduled-games
-  (λ (#:date (game-day (current-date)))
+  (λ (#:date (game-day (today)))
     (date-display-format 'iso-8601)
     (define expand-params "schedule.teams,schedule.linescore,schedule.scoringplays,schedule.game.content.media.epg")
+    (define schedule-header (list "Connection: close"
+                                  "User-Agent: UA_PS4"))
     (define schedule-url (url "https" #f "statsapi.web.nhl.com" #f #t
                               (map (λ (path) (path/param path '())) '("api" "v1" "schedule"))
                               `((expand . ,expand-params)
                                 (platform . ,platform)
                                 (site . "en_nhl")
-                                (date . ,(date->string game-day)))
+                                (date . ,(date->iso8601 game-day)))
                               #f))
-    schedule-url))
+    (define-values (schedule-response-header schedule-response)
+      (call/input-url schedule-url
+                      (λ (u h)
+                        (get-impure-port u h))
+                      (λ (p)
+                        (values (purify-port p)
+                                ((compose string->jsexpr port->string) p)))
+                      schedule-header))
+    schedule-response))
 
 (define (nhl-logout)
   (define logout-url (url "https" #f "account.nhl.com" #f #t
