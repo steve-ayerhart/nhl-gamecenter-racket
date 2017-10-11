@@ -4,7 +4,8 @@
          net/cookies
          net/uri-codec
          net/head
-         gregor
+         net/url-connect
+         (prefix-in gregor: gregor)
          json)
 
 (define current-user-agent (make-parameter "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0"))
@@ -14,9 +15,36 @@
 (define current-pw (make-parameter #f))
 (define platform "IPHONE")
 
+(define login-url (url "https" #f "user.svc.nhl.com" #f #t
+                       (map (λ (path) (path/param path '())) '("v2" "user" "identity"))
+                       '() #f))
+
+(define (build-stream-url game-pk event-id media-playback-id)
+  '())
+
+(define (get-session-key game-pk event-id media-playback-id)
+  (define session-header (list "Accept: application/json"
+                               "Accept-Encoding: identity"
+                               "Accept-Language: en-US,en;q=0.8"
+                               "Connection: keep-alive"
+                               (~a "User-Agent: " (current-user-agent))
+                               (~a "Cookie: " (cookie-header login-url))
+                               "Origin: https://www.nhl.com"
+                               (~a "Referer: https://www.nhl.com/tv/" game-pk "/" event-id "/" media-playback-id)))
+    (define session-url (url "https" #f "mf.svc.nhl.com" #f #t
+                             (map (λ (path) (path/param path '())) '("ws" "media" "mf" "v2.4" "stream"))
+                             `((eventId . "221-1006640")
+                               (format . "json")
+                               (platform . ,platform)
+                               (subject . "NHLTV")
+                               (_ . ,(number->string (current-milliseconds))))
+                             #f))
+
+    (parameterize ((current-https-protocol 'secure))
+      (call/input-url session-url get-pure-port (compose string->jsexpr port->string) session-header)))
+
 (define scheduled-games
-  (λ (#:date (game-day (today)))
-    (date-display-format 'iso-8601)
+  (λ (#:date (game-day (gregor:today)))
     (define expand-params "schedule.teams,schedule.linescore,schedule.scoringplays,schedule.game.content.media.epg")
     (define schedule-header (list "Connection: close"
                                   "User-Agent: UA_PS4"))
@@ -25,17 +53,10 @@
                               `((expand . ,expand-params)
                                 (platform . ,platform)
                                 (site . "en_nhl")
-                                (date . ,(date->iso8601 game-day)))
+                                (date . ,(gregor:date->iso8601 game-day)))
                               #f))
-    (define-values (schedule-response-header schedule-response)
-      (call/input-url schedule-url
-                      (λ (u h)
-                        (get-impure-port u h))
-                      (λ (p)
-                        (values (purify-port p)
-                                ((compose string->jsexpr port->string) p)))
-                      schedule-header))
-    schedule-response))
+
+    (call/input-url schedule-url get-pure-port (compose string->jsexpr port->string) schedule-header)))
 
 (define (nhl-logout)
   (define logout-url (url "https" #f "account.nhl.com" #f #t
@@ -69,9 +90,6 @@
   (define token-url (url "https" #f "user.svc.nhl.com" #f #t
                          (map (λ (path) (path/param path '())) '("oauth" "token"))
                          '((grant_type . "client_credentials")) #f))
-  (define login-url (url "https" #f "user.svc.nhl.com" #f #t
-                         (map (λ (path) (path/param path '())) '("v2" "user" "identity"))
-                         '() #f))
 
   (define token-header (list "Accept: application/json"
                              "Accept-Encoding: gzip, deflate, sdch"
