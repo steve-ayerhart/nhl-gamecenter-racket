@@ -19,9 +19,6 @@
                        (map (λ (path) (path/param path '())) '("v2" "user" "identity"))
                        '() #f))
 
-(define (build-stream-url game-pk event-id media-playback-id)
-  '())
-
 (define (get-session-key game-pk event-id media-playback-id)
   (define session-header (list "Accept: application/json"
                                "Accept-Encoding: identity"
