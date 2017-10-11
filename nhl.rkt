@@ -15,6 +15,7 @@
 (define current-pw (make-parameter #f))
 (define platform "IPHONE")
 
+; globally define this so we can fetch the auth key from the cookie jar
 (define login-url (url "https" #f "user.svc.nhl.com" #f #t
                        (map (λ (path) (path/param path '())) '("v2" "user" "identity"))
                        '() #f))
