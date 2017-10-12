@@ -6,19 +6,26 @@
          net/head
          net/url-connect
          (prefix-in gregor: gregor)
-         json)
-
-(define current-user-agent (make-parameter "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0"))
-; NOTE: This token is from the meta tag "control_plane_client_token" on https://www.nhl.com/login
-(define current-auth-token (make-parameter "d2ViX25obC12MS4wLjA6MmQxZDg0NmVhM2IxOTRhMThlZjQwYWM5ZmJjZTk3ZTM="))
-(define current-email (make-parameter #f))
-(define current-pw (make-parameter #f))
-(define platform "IPHONE")
+         json
+         (planet neil/json-parsing))
 
 ; globally define this so we can fetch the auth key from the cookie jar
 (define login-url (url "https" #f "user.svc.nhl.com" #f #t
                        (map (λ (path) (path/param path '())) '("v2" "user" "identity"))
                        '() #f))
+(define current-user-agent (make-parameter "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0"))
+; NOTE: This token is from the meta tag "control_plane_client_token" on https://www.nhl.com/login
+(define current-auth-token
+  (make-parameter (let ((ch (cookie-header login-url)))
+                    (if ch
+                        (cdr (assoc #"Authorization" (cookie-header->alist ch)))
+                        #"d2ViX25obC12MS4wLjA6MmQxZDg0NmVhM2IxOTRhMThlZjQwYWM5ZmJjZTk3ZTM="))))
+
+(define current-email (make-parameter #f))
+(define current-pw (make-parameter #f))
+(define platform "IPHONE")
+(define playback-scenario "HTTP_CLOUD_TABLET_60")
+
 
 (define (get-session-key game-pk event-id media-playback-id)
   (define session-header (list "Accept: application/json"
@@ -26,7 +33,7 @@
                                "Accept-Language: en-US,en;q=0.8"
                                "Connection: keep-alive"
                                (~a "User-Agent: " (current-user-agent))
-                               (~a "Cookie: " (cookie-header login-url))
+                               (~a "Authorization: " (current-auth-token))
                                "Origin: https://www.nhl.com"
                                (~a "Referer: https://www.nhl.com/tv/" game-pk "/" event-id "/" media-playback-id)))
     (define session-url (url "https" #f "mf.svc.nhl.com" #f #t
@@ -40,6 +47,26 @@
 
     (parameterize ((current-https-protocol 'secure))
       (call/input-url session-url get-pure-port (compose string->jsexpr port->string) session-header)))
+
+(define (build-string-url game-pk event-id media-playback-id)
+  (define stream-header (list "Accept: */*"
+                              "Accept-Encoding: identity"
+                              "Accept-Language: en-US,en;q=0.8"
+                              "Connection: keep-alive"
+                               (~a "User-Agent: " (current-user-agent))
+                               (~a "Authorization: " (current-auth-token))
+                               "Proxy-Connection: keep-alive"))
+
+  (define stream-url (url "https" #f "mf.svc.nhl.com" #f #t
+                          (map (λ (path) (path/param path '())) '("ws" "media" "mf" "v.24" "stream"))
+                          `((contentId . ,media-playback-id)
+                            (playbackScenario . ,playback-scenario)
+                            (platform . ,platform)
+                            (sessionKey . ,(form-urlencoded-encode (get-session-key game-pk event-id media-playback-id)))
+                            (cdnName . "MED2_AKAMAI_SECURE"))
+                          #f))
+
+  (call/input-url stream-url get-pure-port (compose string->jsexpr port->string) stream-header))
 
 (define scheduled-games
   (λ (#:date (game-day (gregor:today)))
@@ -137,4 +164,4 @@
 
     (extract-and-save-cookies! auth-response-header login-url)
 
-    (values auth-response-header auth-response)))
+    (values (current-auth-token) auth-response-header auth-response)))
