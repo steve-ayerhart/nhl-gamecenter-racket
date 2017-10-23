@@ -5,9 +5,19 @@
          net/uri-codec
          net/head
          net/url-connect
+         racket/struct
          (prefix-in gregor: gregor)
          json
          (planet neil/json-parsing))
+
+(provide scheduled-games)
+
+(struct team (id name abbreviation team-name location-name short-name site-url)
+        #:methods gen:custom-write
+        ((define write-proc
+           (make-constructor-style-printer
+            (λ (team-obj) 'team)
+            (λ (team-obj) (list (string->symbol (team-abbreviation team-obj))))))))
 
 ; globally define this so we can fetch the auth key from the cookie jar
 (define login-url (url "https" #f "user.svc.nhl.com" #f #t
@@ -165,3 +175,27 @@
     (extract-and-save-cookies! auth-response-header login-url)
 
     (values (current-auth-token) auth-response-header auth-response)))
+
+(define (fetch-teams-data)
+  (define teams-url (url "http" #f "statsapi.web.nhl.com" #f #t
+                         (map (λ (path) (path/param path '())) '("api" "v1" "teams")) '() #f))
+
+  (define teams-header (list "Accept: */*"
+                             "Accept-Encoding: gzip, deflate"
+                             "Accept-Language: en-US,en;q=0.8"
+                             (~a "User-Agent: " (current-user-agent))))
+
+  (define teams-response (call/input-url teams-url
+                                         get-pure-port
+                                         (compose string->jsexpr port->string)))
+
+
+  (map (λ (team-json)
+         (team (hash-ref team-json 'id)
+               (hash-ref team-json 'name)
+               (hash-ref team-json 'abbreviation)
+               (hash-ref team-json 'teamName)
+               (hash-ref team-json 'locationName)
+               (hash-ref team-json 'shortName)
+               (hash-ref team-json 'officialSiteUrl)))
+       (hash-ref teams-response 'teams)))
