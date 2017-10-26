@@ -93,6 +93,38 @@
 
     (call/input-url schedule-url get-pure-port (compose string->jsexpr port->string) schedule-header)))
 
+(define (scheduled-games->slack-response schedule)
+  (define attachment-list
+    (map (λ (game)
+           (let* ((home (hash-ref (hash-ref game 'teams) 'home))
+                  (away (hash-ref (hash-ref game 'teams) 'away))
+                  (home-record (hash-ref home 'leagueRecord))
+                  (away-record (hash-ref away 'leagueRecord))
+                  (home-team (hash-ref home 'team))
+                  (away-team (hash-ref away 'team))
+                  (home-short-str (hash-ref home-team 'shortName))
+                  (away-short-str (hash-ref away-team 'shortName))
+                  (home-record-str (~a (hash-ref home-record 'wins)
+                                       (hash-ref home-record 'losses)
+                                       (hash-ref home-record 'ot) #:separator "-"))
+                  (away-record-str (~a (hash-ref away-record 'wins)
+                                       (hash-ref away-record 'losses)
+                                       (hash-ref away-record 'ot) #:separator "-")))
+             (make-hash `((markdwn_in . ("text"))
+                          (fields . (
+                                     #hash((title . ,home-short-str)
+                                           (value . ,home-record-str)
+                                           (short . #t))
+                                          #hash((title . ,away-short-str)
+                                                (value . ,away-record-str)
+                                                (short . #t))))))))
+
+           (hash-ref (first (hash-ref schedule 'dates)) 'games)))
+
+  (make-hash `((username . "NHL Bot")
+               (text . "Today's Games")
+               (attachments . ,attachment-list))))
+
 (define (nhl-logout)
   (define logout-url (url "https" #f "account.nhl.com" #f #t
                           (map (λ (path) (path/param path '())) '("ui" "rest" "logout"))
