@@ -20,7 +20,7 @@
 (define (slack-events req)
   (define event-data (bytes->jsexpr (request-post-data/raw req)))
   (define challenge-response (response/full
-                              300 #"OK" (current-seconds) #"application/json" '()
+                              200 #"OK" (current-seconds) #"application/json" '()
                               (list (jsexpr->bytes (make-hash `((challenge . ,(hash-ref event-data 'challenge))))))))
   (define bad-callback-response (response/full 400 #"unrecognized event type" (current-seconds) #f '() '()))
 
