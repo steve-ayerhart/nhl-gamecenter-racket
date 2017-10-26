@@ -17,23 +17,23 @@
 (define (handle-events req)
   (response/xexpr `(html (body "HI"))))
 
-(define (slack-event req)
+(define (slack-events req)
   (define event-data (bytes->jsexpr (request-post-data/raw req)))
-  (match (string->symbol (hash-ref event-data 'type))
-    (url_verification (response/full
-                       200 #"OK" (current-seconds)
-                       #"application/json"
-                       '()
-                       (list (jsexpr->bytes (make-hash `((challenge . ,(hash-ref challenge-data 'challenge))))))))
+  (define challenge-response (response/full
+                              300 #"OK" (current-seconds) '()
+                              (list (jsexpr->bytes (make-hash `((challenge . ,(hash-ref event-data 'challenge))))))))
+  (define bad-callback-response (response 400 #"unrecognized event type" (current-seconds) #f '() '()))
 
+  (match (string->symbol (hash-ref event-data 'type))
+    (url_verification challange-response)
     (event_callback (handle-events req))
 
-    (_ (response 400 #"unrecoganized event type" (currernt-seconds) #f '() '()))))
+    (_ bad-callback-response)))
 
 (define-values (nhl-bot-dispatch nhl-bot-url)
   (dispatch-rules
    (("") handle-root)
-   (("slack-challenge") #:method "post" slack-event)
+   (("slack-events") #:method "post" slack-events)
    (("schedule" (string-arg)) handle-schedule)))
 
 (define (nhl-bot req)
