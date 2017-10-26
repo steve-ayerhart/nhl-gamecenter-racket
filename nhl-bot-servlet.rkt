@@ -10,7 +10,6 @@
 
 (provide nhl-bot current-webhook-host current-webhook-uri)
 
-
 (define current-webhook-host (make-parameter #f))
 (define current-webhook-uri (make-parameter #f))
 
