@@ -1,0 +1,16 @@
+#! /usr/bin/env racket
+#lang racket/base
+
+(require racket/cmdline
+         web-server/servlet
+         web-server/servlet-env
+
+         "nhl-bot-servlet.rkt")
+
+(parameterize ((current-webhook-url (getenv "WEBHOOK_URL")))
+  (serve/servlet nhl-bot
+                 #:launch-browser? #f
+                 #:port 8080
+                 #:servlet-path "/"
+                 #:servlet-regexp #rx""
+                 #:stateless? #t))
