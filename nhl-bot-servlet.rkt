@@ -2,20 +2,26 @@
 
 (require web-server/servlet-env
          web-server/dispatch
+         net/http-client
          json
          web-server/http/request-structs)
 
 (require "nhl.rkt")
 
-(provide nhl-bot current-webhook-url)
+(provide nhl-bot current-webhook-host current-webhook-uri)
 
-(define current-webhook-url (make-parameter #f))
+
+(define current-webhook-host (make-parameter #f))
+(define current-webhook-uri (make-parameter #f))
 
 (define (handle-root req)
   (response/xexpr `(html (body "HI"))))
 
 (define (handle-events req)
-  (response/xexpr `(html (body "HI"))))
+  (define-values (status headers in)
+    (http-sendrecv (current-webhook-host) (current-webhook-uri) #:ssl? #t #:method "POST"
+                   (jsexpr->bytes (make-hash '((text . "FART"))))))
+  #t)
 
 (define (slack-events req)
   (define event-data (bytes->jsexpr (request-post-data/raw req)))
