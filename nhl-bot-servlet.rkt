@@ -25,7 +25,7 @@
   (define bad-callback-response (response 400 #"unrecognized event type" (current-seconds) #f '() '()))
 
   (match (string->symbol (hash-ref event-data 'type))
-    (url_verification challange-response)
+    (url_verification challenge-response)
     (event_callback (handle-events req))
 
     (_ bad-callback-response)))
@@ -33,8 +33,7 @@
 (define-values (nhl-bot-dispatch nhl-bot-url)
   (dispatch-rules
    (("") handle-root)
-   (("slack-events") #:method "post" slack-events)
-   (("schedule" (string-arg)) handle-schedule)))
+   (("slack-events") #:method "post" slack-events)))
 
 (define (nhl-bot req)
   (nhl-bot-dispatch req))
