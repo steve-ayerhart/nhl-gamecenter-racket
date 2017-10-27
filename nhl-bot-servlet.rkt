@@ -20,7 +20,7 @@
   (define webhook-url (string->url (current-webhook-url)))
 
   (define message-result
-    (if (string=? "B7Q6HMA84" (hash-ref (hash-ref (hash-ref event 'event) 'message) 'bot_id))
+    (if (string=? "B7Q6HMA84" (hash-ref event 'bot_id))
         "Me"
         (call/input-url webhook-url
                         (λ (url head)
