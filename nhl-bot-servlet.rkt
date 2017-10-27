@@ -22,7 +22,7 @@
     (http-sendrecv (current-webhook-host) (current-webhook-uri)
                    #:ssl? #t #:method "POST"
                    #:data (jsexpr->bytes (make-hash '((text . "IMADUDE"))))))
-  (response/full 200 #"OK (current-seconds" #f '() '()))
+  (response/full 200 #"OK" (current-seconds) #f '() '()))
 
 (define (slack-events req)
   (define event-data (bytes->jsexpr (request-post-data/raw req)))
