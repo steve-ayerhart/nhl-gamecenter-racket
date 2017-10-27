@@ -9,7 +9,7 @@
          json
          (planet neil/json-parsing))
 
-(provide scheduled-games)
+(provide scheduled-games scheduled-games->slack-response)
 
 ; globally define this so we can fetch the auth key from the cookie jar
 (define login-url (url "https" #f "user.svc.nhl.com" #f #t

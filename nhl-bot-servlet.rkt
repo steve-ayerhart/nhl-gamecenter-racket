@@ -22,7 +22,7 @@
 
   (unless (or (hash-has-key? event 'bot_id) (hash-has-key? event 'subtype))
     (let* ((message-text (hash-ref event 'text))
-           (maybe-command? (regexp-match #rx"^nhl (+*)" message-text)))
+           (maybe-command? (regexp-match #rx"^nhl (.+)" message-text)))
       (when maybe-command?
         (call/input-url webhook-url
                         (λ (url head)
@@ -31,12 +31,12 @@
                         '()))))
   ok-response)
 
-(define handle-command (command)
+(define (handle-command command)
   (define unknown-command-message (make-hash `((text . ,(~a command ": unknown command")))))
 
-  (match (command)
+  (match command
     ("schedule" (scheduled-games->slack-response (scheduled-games)))
-    (_ unknown-command-response)))
+    (_ unknown-command-message)))
 
 (define (challenge-response req event)
   (response/full 200 #"OK" (current-seconds) #"application/json" '()
