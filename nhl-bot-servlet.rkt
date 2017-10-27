@@ -8,22 +8,25 @@
 
 (require "nhl.rkt")
 
-(provide nhl-bot current-webhook-host current-webhook-uri)
+(provide nhl-bot current-webhook-url)
 
-(define current-webhook-host (make-parameter #f))
-(define current-webhook-uri (make-parameter #f))
+(define current-webhook-url (make-parameter ""))
 
 (define (handle-root req)
   (response/xexpr `(html (body "HI"))))
 
 (define (handle-events req event)
-  (define-values (status headers in)
-    (http-sendrecv (current-webhook-host) (current-webhook-uri)
-                   #:ssl? #t #:method "POST"
-                   #:data (jsexpr->bytes (make-hash '((text . "IMADUDE"))))))
+  (define webhook-url (string->url (current-webhook-url)))
+
+  (define message-result (call/input-url webhook-url
+                                         (λ (url head)
+                                           (post-pure-port url (jsexpr->bytes (make-hash `((text . ":poolparty:")))) head))
+                                         port->string
+                                         '()))
   (response/full 200 #"OK" (current-seconds) #f '() '()))
 
 (define (challenge-response req event)
+  (displayln event (current-error-port))
   (response/full 200 #"OK" (current-seconds) #"application/json" '()
                  (list (jsexpr->bytes (make-hash `((challenge . ,(hash-ref event 'challenge))))))))
 

@@ -7,8 +7,7 @@
 
          "nhl-bot-servlet.rkt")
 
-(parameterize ((current-webhook-host (getenv "WEBHOOK_HOST"))
-               (current-webhook-uri (getenv "WEBHOOK_URI")))
+(parameterize ((current-webhook-url (getenv "WEBHOOK_URL")))
   (serve/servlet nhl-bot
                  #:launch-browser? #f
                  #:port 8080
