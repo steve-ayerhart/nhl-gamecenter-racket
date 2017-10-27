@@ -18,14 +18,15 @@
 
 (define (handle-events req event)
   (define webhook-url (string->url (current-webhook-url)))
+  (define ok-response (response/full 200 #"OK" (current-seconds) #f '() '()))
 
   (unless (or (hash-has-key? event 'bot_id) (hash-has-key? event 'subtype))
     (call/input-url webhook-url
                     (λ (url head)
                       (post-pure-port url (jsexpr->bytes (make-hash `((text . ":poolparty:")))) head))
                     port->string
-                    '())
-    (response/full 200 #"OK" (current-seconds) #f '() '())))
+                    '()))
+  ok-response)
 
 (define (challenge-response req event)
   (displayln event (current-error-port))
