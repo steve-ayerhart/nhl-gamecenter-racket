@@ -13,7 +13,7 @@
 (define current-webhook-url (make-parameter ""))
 
 (define (handle-root req)
-  (response/xexpr `(html (body "HI"))))
+  (response/xexpr `(html (body "bonerbonerboner"))))
 
 (define (handle-events req event)
   (define webhook-url (string->url (current-webhook-url)))
