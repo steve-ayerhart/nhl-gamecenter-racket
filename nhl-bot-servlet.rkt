@@ -11,6 +11,7 @@
 (provide nhl-bot current-webhook-url)
 
 (define current-webhook-url (make-parameter ""))
+(define current-bot-id (make-parameter ""))
 
 (define (handle-root req)
   (response/xexpr `(html (body "bonerbonerboner"))))
@@ -18,11 +19,14 @@
 (define (handle-events req event)
   (define webhook-url (string->url (current-webhook-url)))
 
-  (define message-result (call/input-url webhook-url
-                                         (λ (url head)
-                                           (post-pure-port url (jsexpr->bytes (make-hash `((text . ":poolparty:")))) head))
-                                         port->string
-                                         '()))
+  (define message-result
+    (if (string=? "B7Q6HMA84" (hash-ref (hash-ref event 'event) 'bot_id))
+        "Me"
+        (call/input-url webhook-url
+                        (λ (url head)
+                          (post-pure-port url (jsexpr->bytes (make-hash `((text . ":poolparty:")))) head))
+                        port->string
+                        '())))
   (response/full 200 #"OK" (current-seconds) #f '() '()))
 
 (define (challenge-response req event)
