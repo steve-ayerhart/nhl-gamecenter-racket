@@ -16,24 +16,24 @@
 (define (handle-root req)
   (response/xexpr `(html (body "HI"))))
 
-(define (handle-events req)
-  (displayln (request-post-data/raw req))
+(define (handle-events req event)
   (define-values (status headers in)
     (http-sendrecv (current-webhook-host) (current-webhook-uri)
                    #:ssl? #t #:method "POST"
                    #:data (jsexpr->bytes (make-hash '((text . "IMADUDE"))))))
   (response/full 200 #"OK" (current-seconds) #f '() '()))
 
+(define (challenge-response req event)
+  (response/full 200 #"OK" (current-seconds) #"application/json" '()
+                 (list (jsexpr->bytes (make-hash `((challenge . ,(hash-ref event 'challenge))))))))
+
 (define (slack-events req)
   (define event-data (bytes->jsexpr (request-post-data/raw req)))
-  (define challenge-response (response/full
-                              200 #"OK" (current-seconds) #"application/json" '()
-                              (list (jsexpr->bytes (make-hash `((challenge . ,(hash-ref event-data 'challenge))))))))
   (define bad-callback-response (response/full 400 #"unrecognized event type" (current-seconds) #f '() '()))
 
   (match (hash-ref event-data 'type)
-    ("url_verification"  challenge-response)
-    ("event_callback" (handle-events req))
+    ("url_verification"  (challenge-response req event-data))
+    ("event_callback" (handle-events req event-data))
     (_ bad-callback-response)))
 
 (define-values (nhl-bot-dispatch nhl-bot-url)
